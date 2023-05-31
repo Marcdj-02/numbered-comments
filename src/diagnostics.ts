@@ -12,6 +12,7 @@ const CHAIN_DELIMITER = ".";
 export const IGNORE_FILE_REGEX = new RegExp(`^ *(?:${COMMENT_SYMBOLS_REGEX.map((e) => e.source).join("|")}) *@nc-ignore`);
 export const RESET_COUNTER_REGEX = new RegExp(`^ *(?:${COMMENT_SYMBOLS_REGEX.map((e) => e.source).join("|")}) *@nc-reset`);
 
+// 3. Type facade for number chains
 export type Chain = number[];
 
 /**
@@ -27,27 +28,35 @@ export type Chain = number[];
  * @date 2023-05-23
  */
 export function lineToChain(line: string): Chain | null {
+    // 1. Remove preceding whitespace
     const lineWithoutWhitespace = line.trimStart();
+
+    // 2. Remove preceding comment symbols
     const lineWithoutCommentSymbols = (() => {
         for (const regex of COMMENT_SYMBOLS_REGEX) {
             if (new RegExp("^" + regex.source).test(lineWithoutWhitespace)) {
-                return lineWithoutWhitespace.replace(regex, "");
+                return lineWithoutWhitespace.replace(new RegExp("^" + regex.source), "");
             }
         }
 
         return lineWithoutWhitespace;
     })();
 
+    // 3. Remove any whitespace after comment symbols
     const lineWithoutCommentSymbolsAndWhitespace = lineWithoutCommentSymbols.trimStart();
 
+    // 4. Find the number chain
     const chain = lineWithoutCommentSymbolsAndWhitespace.match(new RegExp(`^${CHAIN_REGEX.source}`));
 
+    // 5. If there is no chain, return null
     if (!chain) {
         return null;
     }
 
+    // 6. Split the chain on the delimiter and parse the numbers
     const numberChain = chain[0].split(CHAIN_DELIMITER).map((val) => parseInt(val));
 
+    // 7. Return the chain
     return numberChain.filter((numb) => !isNaN(numb));
 
 }
@@ -58,7 +67,10 @@ export function lineToChain(line: string): Chain | null {
  * @date 2023-05-23
  */
 export function lineToChainRemainder(line: string): string {
+    // 1. Remove leading whitespace
     const lineWithoutWhitespace = line.trimStart();
+
+    // 2. Remove leading comment symbols
     const lineWithoutCommentSymbols = (() => {
         if (NUMBERED_COMMENT_REGEX.test(lineWithoutWhitespace)) {
             return lineWithoutWhitespace.replace(NUMBERED_COMMENT_REGEX, "");
@@ -67,12 +79,14 @@ export function lineToChainRemainder(line: string): string {
         return lineWithoutWhitespace;
     })();
 
+    // 3. Remove any whitespace after comment symbols
     const lineWithoutCommentSymbolsAndWhitespace = lineWithoutCommentSymbols.trimStart();
 
+    // 4. Strip the chain from the comment
     const remainder = lineWithoutCommentSymbolsAndWhitespace.replace(new RegExp(`^ ${CHAIN_REGEX.source}`), "");
 
+    // 5. Return the remainder
     return remainder.trim();
-
 }
 
 /**
@@ -86,16 +100,19 @@ export function lineToChainRemainder(line: string): string {
  * @date 2023-05-24
  */
 function arraysAreEqual(a: number[], b: number[]) {
+    // 1. If the arrays are not of equal length, they cannot be equal
     if (a.length !== b.length) {
         return false;
     }
 
+    // 2. Compare each element
     for (let i = 0; i < a.length; ++i) {
         if (a[i] !== b[i]) {
             return false;
         }
     }
 
+    // 3. If all elements are equal, the arrays are equal
     return true;
 }
 
@@ -131,42 +148,19 @@ export function chainToString(chain: Chain) {
  * @date 2023-05-24
  */
 export function chainSucceedsOther(prev: Chain, current: Chain){
-    // Check the case in which the previous chain is appended by a one
+    // 1. Check the case in which the previous chain is appended by a one
     if (arraysAreEqual(current, [...prev, 1])){
         return true;
     }
 
-    // Check the case in which the previous chain is increased by one and cut off
+    // 2. Check the case in which the previous chain is increased by one and cut off
     for (let i = 0; i < prev.length; ++i) {
         if (prev[i] + 1 === current[i] && i === current.length - 1) {
             return true;
         }
     }
 
-    return false;
-}
-
-/**
- * 
- * @example chainIsChildOfOther([1], [2]) -> false
- * @example chainIsChildOfOther([1,1], [1,2]) -> false
- * @example chainIsChildOfOther([1,1,1], [1,2]) -> false
- * @example chainIsChildOfOther([1], [1,1]) -> true
- * @example chainIsChildOfOther([1,1], [1,1,1]) -> true
- * @example chainIsChildOfOther([1,1,1], [1,1,1,1]) -> true
-*/
-export function chainIsChildOfOther(parent: Chain| string, child: Chain) {
-    if (typeof parent === 'string') return true;
-    if (parent.length >= child.length) {
-        return false;
-    }
-
-    for (let i = 0; i < parent.length; ++i) {
-        if (parent[i] !== child[i]) {
-            return false;
-        }
-    }
-
+    // 3. If neither case is true, the current chain does not succeed the previous chain
     return false;
 }
 
@@ -174,62 +168,82 @@ export function refreshDiagnostics(doc: vscode.TextDocument, commentDiagnostics:
 	const diagnostics: vscode.Diagnostic[] = [];
     let lastChain: Chain | null = null;
 
+    // 1. Iterate over all lines in the document
 	for (let lineIndex = 0; lineIndex < doc.lineCount; lineIndex++) {
 		const line = doc.lineAt(lineIndex);
 
+        // 1.1 If an ignore comment is found, stop processing the file
         if (IGNORE_FILE_REGEX.test(line.text)) {
             break;
         }
 
+        // 1.2 If a reset counter comment is found, empty the last chain and start over
         if (RESET_COUNTER_REGEX.test(line.text)) {
             lastChain = null;
             continue;
         }
 
+        // 1.3 If a comment is found, try to parse the chain
         const chain = lineToChain(line.text);
         
+        // 1.4 If no chain is found, go to the next line
         if (!chain) {
             continue;
         }
 
+        // 1.5 If the chain starts with a 0 or 1 and does not start the same as the previous chain, we reset the chain
         if (lastChain && chain[0] < 2 && chain[0] !== lastChain[0]) {
             lastChain = chain;
             continue;
         }
 
+        // 1.6 If the chain does not succeed the previous chain, create a diagnostic to warn the user
         if (lastChain && !chainSucceedsOther(lastChain, chain)) {
             diagnostics.push(createDiagnostic(doc, line, lineIndex, lastChain));
         }
 
+        // 1.7 Set the last chain to the current chain
         lastChain = chain;
 	}
 
+
+    // 2. Set the diagnostics to expose the errors
 	commentDiagnostics.set(doc.uri, diagnostics);
 }
 
 function createDiagnostic(doc: vscode.TextDocument, lineOfText: vscode.TextLine, lineIndex: number, lastChain: Chain): vscode.Diagnostic {
+    // 1. Find the match
     const match = lineOfText.text.match(NUMBERED_COMMENT_REGEX);
 
+    // 2. If no match is found, throw an error
     if(!match) {
         throw new Error("No match found");
     }
 
+    // 3. Get the capture groups from the match
     const matchedSubString = match[0];
-    const captureGroup = match[1];
+    const capturedChain = match[1];
 
-    if (!matchedSubString || !captureGroup) {
+    // 4. If no capture group is found, throw an error
+    if (!matchedSubString || !capturedChain) {
         throw new Error("No matchZero found");
     }
 
-    const index = matchedSubString.indexOf(captureGroup);
+    // 5. Get the start of the captured chain
+    const index = matchedSubString.indexOf(capturedChain);
 
-	const range = new vscode.Range(lineIndex, index, lineIndex, index + captureGroup.length);
+    // 6. Create a range for the diagnostic to indicate the error
+	const range = new vscode.Range(lineIndex, index, lineIndex, index + capturedChain.length);
 
-    const captureGroupWithoutTrailingDot = captureGroup[captureGroup.length - 1] === "." ? captureGroup.slice(0, -1) : captureGroup;
+    // 7. Remove the trailing dot from the captured chain
+    const captureGroupWithoutTrailingDot = capturedChain[capturedChain.length - 1] === "." ? capturedChain.slice(0, -1) : capturedChain;
 
+    // 8. Create a diagnostic to indicate the error 
 	const diagnostic = new vscode.Diagnostic(range, `Comment number (${captureGroupWithoutTrailingDot}) does not succeed previous comment number (${chainToString(lastChain)})`,
 		vscode.DiagnosticSeverity.Warning);
 	diagnostic.code = NUMBERED_COMMENTS;
+
+    // 9. Return the diagnostic
 	return diagnostic;
 }
 
