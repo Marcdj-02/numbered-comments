@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { Tree } from './models/Tree';
-import { chainIsChildOfOther, chainSucceedsOther, chainToString, lineToChain, lineToChainRemainder } from './diagnostics';
+import { IGNORE_FILE_REGEX, RESET_COUNTER_REGEX, chainIsChildOfOther, chainSucceedsOther, chainToString, lineToChain, lineToChainRemainder } from './diagnostics';
 import { ChainTree } from './models/ChainTree';
 
 function documentToTrees(document: vscode.TextDocument | undefined): Tree[] { 
@@ -10,6 +10,16 @@ function documentToTrees(document: vscode.TextDocument | undefined): Tree[] {
 
 	for (let lineIndex = 0; lineIndex < document.lineCount; lineIndex++) {
 		const line = document.lineAt(lineIndex);
+
+		if (IGNORE_FILE_REGEX.test(line.text)) {
+            return chainTrees.map(tree => tree.toTree());
+        }
+
+        if (RESET_COUNTER_REGEX.test(line.text)) {
+            chainTrees.push(new ChainTree(Number.NaN, `--- Comment section ${chainTrees.length + 1} ---`, undefined));
+            continue;
+        }
+
 		const chain = lineToChain(line.text)
 		if (!chain) continue;
 
@@ -35,8 +45,6 @@ function documentToTrees(document: vscode.TextDocument | undefined): Tree[] {
 			chainIndex++;
 		}
 	}
-
-	console.log(chainTrees);
 
 	return chainTrees.map(tree => tree.toTree());
 }
@@ -93,7 +101,6 @@ export class CommentTreeProvider implements vscode.TreeDataProvider<Tree> {
 			return Promise.resolve(element.getChildren() ?? []);
 		}
 
-		console.log('resolving alrgiht', this.topLevelComments)
         return Promise.resolve(this.topLevelComments);
 
 		// if (element) {

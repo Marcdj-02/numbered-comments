@@ -1,12 +1,16 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.subscribeToDocumentChanges = exports.refreshDiagnostics = exports.chainIsChildOfOther = exports.chainSucceedsOther = exports.chainToString = exports.lineToChainRemainder = exports.lineToChain = exports.NUMBERED_COMMENTS = void 0;
+exports.subscribeToDocumentChanges = exports.refreshDiagnostics = exports.chainIsChildOfOther = exports.chainSucceedsOther = exports.chainToString = exports.lineToChainRemainder = exports.lineToChain = exports.RESET_COUNTER_REGEX = exports.IGNORE_FILE_REGEX = exports.NUMBERED_COMMENTS = void 0;
 const vscode = require("vscode");
 exports.NUMBERED_COMMENTS = 'numbered_comments';
-const START_COMMENT_SYMBOLS_REGEX = [/^\/\//, /^\/\*/];
-const NUMBERED_COMMENT_REGEX = /^ *(?:\/\/|\/\*) (\d+\.(?:\d\.?)*)/;
-const CHAIN_REGEX = /^\d+\.(?:\d\.?)*/;
+// 1. General regex matching rules
+const COMMENT_SYMBOLS_REGEX = [/\/\//, /\/\*/, /#/];
+const CHAIN_REGEX = /\d+\.(?:\d\.?)*/;
+const NUMBERED_COMMENT_REGEX = new RegExp(`^ *(?:${COMMENT_SYMBOLS_REGEX.map((e) => e.source).join("|")}) (${CHAIN_REGEX.source})`);
 const CHAIN_DELIMITER = ".";
+// 2. Extension command matching rules
+exports.IGNORE_FILE_REGEX = new RegExp(`^ *(?:${COMMENT_SYMBOLS_REGEX.map((e) => e.source).join("|")}) *@nc-ignore`);
+exports.RESET_COUNTER_REGEX = new RegExp(`^ *(?:${COMMENT_SYMBOLS_REGEX.map((e) => e.source).join("|")}) *@nc-reset`);
 /**
  * Remove any preceding whitespace and comment symbols from the line.
  *
@@ -22,15 +26,15 @@ const CHAIN_DELIMITER = ".";
 function lineToChain(line) {
     const lineWithoutWhitespace = line.trimStart();
     const lineWithoutCommentSymbols = (() => {
-        for (const regex of START_COMMENT_SYMBOLS_REGEX) {
-            if (regex.test(lineWithoutWhitespace)) {
+        for (const regex of COMMENT_SYMBOLS_REGEX) {
+            if (new RegExp("^" + regex.source).test(lineWithoutWhitespace)) {
                 return lineWithoutWhitespace.replace(regex, "");
             }
         }
         return lineWithoutWhitespace;
     })();
     const lineWithoutCommentSymbolsAndWhitespace = lineWithoutCommentSymbols.trimStart();
-    const chain = lineWithoutCommentSymbolsAndWhitespace.match(CHAIN_REGEX);
+    const chain = lineWithoutCommentSymbolsAndWhitespace.match(new RegExp(`^${CHAIN_REGEX.source}`));
     if (!chain) {
         return null;
     }
@@ -46,15 +50,13 @@ exports.lineToChain = lineToChain;
 function lineToChainRemainder(line) {
     const lineWithoutWhitespace = line.trimStart();
     const lineWithoutCommentSymbols = (() => {
-        for (const regex of START_COMMENT_SYMBOLS_REGEX) {
-            if (regex.test(lineWithoutWhitespace)) {
-                return lineWithoutWhitespace.replace(regex, "");
-            }
+        if (NUMBERED_COMMENT_REGEX.test(lineWithoutWhitespace)) {
+            return lineWithoutWhitespace.replace(NUMBERED_COMMENT_REGEX, "");
         }
         return lineWithoutWhitespace;
     })();
     const lineWithoutCommentSymbolsAndWhitespace = lineWithoutCommentSymbols.trimStart();
-    const remainder = lineWithoutCommentSymbolsAndWhitespace.replace(CHAIN_REGEX, "");
+    const remainder = lineWithoutCommentSymbolsAndWhitespace.replace(new RegExp(`^ ${CHAIN_REGEX.source}`), "");
     return remainder.trim();
 }
 exports.lineToChainRemainder = lineToChainRemainder;
@@ -152,6 +154,13 @@ function refreshDiagnostics(doc, commentDiagnostics) {
     let lastChain = null;
     for (let lineIndex = 0; lineIndex < doc.lineCount; lineIndex++) {
         const line = doc.lineAt(lineIndex);
+        if (exports.IGNORE_FILE_REGEX.test(line.text)) {
+            break;
+        }
+        if (exports.RESET_COUNTER_REGEX.test(line.text)) {
+            lastChain = null;
+            continue;
+        }
         const chain = lineToChain(line.text);
         if (!chain) {
             continue;

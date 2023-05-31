@@ -2,10 +2,15 @@ import * as vscode from 'vscode';
 
 export const NUMBERED_COMMENTS = 'numbered_comments';
 
-const START_COMMENT_SYMBOLS_REGEX = [/^\/\//, /^\/\*/];
-const NUMBERED_COMMENT_REGEX = /^ *(?:\/\/|\/\*|#) (\d+\.(?:\d\.?)*)/;
-const CHAIN_REGEX = /^\d+\.(?:\d\.?)*/;
+// 1. General regex matching rules
+const COMMENT_SYMBOLS_REGEX = [/\/\//, /\/\*/, /#/];
+const CHAIN_REGEX = /\d+\.(?:\d\.?)*/;
+const NUMBERED_COMMENT_REGEX = new RegExp(`^ *(?:${COMMENT_SYMBOLS_REGEX.map((e) => e.source).join("|")}) (${CHAIN_REGEX.source})`)
 const CHAIN_DELIMITER = ".";
+
+// 2. Extension command matching rules
+export const IGNORE_FILE_REGEX = new RegExp(`^ *(?:${COMMENT_SYMBOLS_REGEX.map((e) => e.source).join("|")}) *@nc-ignore`);
+export const RESET_COUNTER_REGEX = new RegExp(`^ *(?:${COMMENT_SYMBOLS_REGEX.map((e) => e.source).join("|")}) *@nc-reset`);
 
 export type Chain = number[];
 
@@ -24,8 +29,8 @@ export type Chain = number[];
 export function lineToChain(line: string): Chain | null {
     const lineWithoutWhitespace = line.trimStart();
     const lineWithoutCommentSymbols = (() => {
-        for (const regex of START_COMMENT_SYMBOLS_REGEX) {
-            if (regex.test(lineWithoutWhitespace)) {
+        for (const regex of COMMENT_SYMBOLS_REGEX) {
+            if (new RegExp("^" + regex.source).test(lineWithoutWhitespace)) {
                 return lineWithoutWhitespace.replace(regex, "");
             }
         }
@@ -35,7 +40,7 @@ export function lineToChain(line: string): Chain | null {
 
     const lineWithoutCommentSymbolsAndWhitespace = lineWithoutCommentSymbols.trimStart();
 
-    const chain = lineWithoutCommentSymbolsAndWhitespace.match(CHAIN_REGEX);
+    const chain = lineWithoutCommentSymbolsAndWhitespace.match(new RegExp(`^${CHAIN_REGEX.source}`));
 
     if (!chain) {
         return null;
@@ -55,10 +60,8 @@ export function lineToChain(line: string): Chain | null {
 export function lineToChainRemainder(line: string): string {
     const lineWithoutWhitespace = line.trimStart();
     const lineWithoutCommentSymbols = (() => {
-        for (const regex of START_COMMENT_SYMBOLS_REGEX) {
-            if (regex.test(lineWithoutWhitespace)) {
-                return lineWithoutWhitespace.replace(regex, "");
-            }
+        if (NUMBERED_COMMENT_REGEX.test(lineWithoutWhitespace)) {
+            return lineWithoutWhitespace.replace(NUMBERED_COMMENT_REGEX, "");
         }
 
         return lineWithoutWhitespace;
@@ -66,7 +69,7 @@ export function lineToChainRemainder(line: string): string {
 
     const lineWithoutCommentSymbolsAndWhitespace = lineWithoutCommentSymbols.trimStart();
 
-    const remainder = lineWithoutCommentSymbolsAndWhitespace.replace(CHAIN_REGEX, "");
+    const remainder = lineWithoutCommentSymbolsAndWhitespace.replace(new RegExp(`^ ${CHAIN_REGEX.source}`), "");
 
     return remainder.trim();
 
@@ -173,6 +176,16 @@ export function refreshDiagnostics(doc: vscode.TextDocument, commentDiagnostics:
 
 	for (let lineIndex = 0; lineIndex < doc.lineCount; lineIndex++) {
 		const line = doc.lineAt(lineIndex);
+
+        if (IGNORE_FILE_REGEX.test(line.text)) {
+            break;
+        }
+
+        if (RESET_COUNTER_REGEX.test(line.text)) {
+            lastChain = null;
+            continue;
+        }
+
         const chain = lineToChain(line.text);
         
         if (!chain) {

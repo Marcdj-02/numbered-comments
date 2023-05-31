@@ -10,6 +10,13 @@ function documentToTrees(document) {
         return [];
     for (let lineIndex = 0; lineIndex < document.lineCount; lineIndex++) {
         const line = document.lineAt(lineIndex);
+        if (diagnostics_1.IGNORE_FILE_REGEX.test(line.text)) {
+            return chainTrees.map(tree => tree.toTree());
+        }
+        if (diagnostics_1.RESET_COUNTER_REGEX.test(line.text)) {
+            chainTrees.push(new ChainTree_1.ChainTree(Number.NaN, `--- Comment section ${chainTrees.length + 1} ---`, undefined));
+            continue;
+        }
         const chain = (0, diagnostics_1.lineToChain)(line.text);
         if (!chain)
             continue;
@@ -31,7 +38,6 @@ function documentToTrees(document) {
             chainIndex++;
         }
     }
-    console.log(chainTrees);
     return chainTrees.map(tree => tree.toTree());
 }
 class CommentTreeProvider {
@@ -75,7 +81,6 @@ class CommentTreeProvider {
         if (element) {
             return Promise.resolve(element.getChildren() ?? []);
         }
-        console.log('resolving alrgiht', this.topLevelComments);
         return Promise.resolve(this.topLevelComments);
         // if (element) {
         // 	return Promise.resolve(this.getDepsInPackageJson(path.join(this.workspaceRoot, 'node_modules', element.label, 'package.json')));
