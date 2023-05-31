@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 export const NUMBERED_COMMENTS = 'numbered_comments';
 
 const START_COMMENT_SYMBOLS_REGEX = [/^\/\//, /^\/\*/];
-const NUMBERED_COMMENT_REGEX = /^ *(?:\/\/|\/\*) (\d+\.(?:\d\.?)*)/;
+const NUMBERED_COMMENT_REGEX = /^ *(?:\/\/|\/\*|#) (\d+\.(?:\d\.?)*)/;
 const CHAIN_REGEX = /^\d+\.(?:\d\.?)*/;
 const CHAIN_DELIMITER = ".";
 

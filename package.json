@@ -19,7 +19,10 @@
 		"onLanguage:typescriptreact",
 		"onLanguage:typescript",
 		"onLanguage:javascriptreact",
-		"onLanguage:javascript"
+		"onLanguage:javascript",
+		"onLanguage:python",
+		"onLanguage:java",
+		"onLanguage:csharp"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
@@ -33,19 +36,19 @@
 		"viewsContainers": {
 			"activitybar": [
 				{
-					"id": "package-explorer",
+					"id": "comment-tree",
 					"title": "Numbered Comments",
 					"icon": "assets/icon.svg"
 				}
 			]
 		},
 		"views": {
-			"package-explorer": [
+			"comment-tree": [
 				{
 					"id": "comment-tree",
 					"name": "Overview",
 					"icon": "assets/icon.svg",
-					"contextualTitle": "Numbered Comments "
+					"contextualTitle": "Numbered Comments"
 				}
 			]
 		}
