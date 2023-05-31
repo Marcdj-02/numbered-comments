@@ -6,7 +6,29 @@ import * as vscode from 'vscode';
 import { subscribeToDocumentChanges } from './diagnostics';
 import { CommentTreeProvider } from './commentTreeProvider';
 
+const TARGET_LANGUAGES = ['typescript', 'typescriptreact', 'javascript', 'javascriptreact', 'python', 'csharp', 'java'];
+const COMMAND_COMPLETIONS = [["// @", "@", "nc-ignore"], ["// @", "@", "nc-reset"]]
+
 export function activate(context: vscode.ExtensionContext) {
+
+	for (const language of TARGET_LANGUAGES) {
+		for (const commandCompletion of COMMAND_COMPLETIONS) {
+			context.subscriptions.push(vscode.languages.registerCompletionItemProvider(language, {
+				provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
+					const linePrefix = document.lineAt(position).text.substr(0, position.character);
+					if (!linePrefix.endsWith(commandCompletion[0])) {
+						return undefined;
+					}
+
+					const item = new vscode.CompletionItem(commandCompletion[2], vscode.CompletionItemKind.Snippet);
+
+					return [item];
+				}
+			}, commandCompletion[1]));
+		}
+
+	}
+
 	const commentTreeProvider = new CommentTreeProvider();
 	vscode.window.registerTreeDataProvider('comment-tree', commentTreeProvider);
 
