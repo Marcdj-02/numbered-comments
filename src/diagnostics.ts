@@ -7,7 +7,7 @@ const NUMBERED_COMMENT_REGEX = /^ *(?:\/\/|\/\*) (\d+\.(?:\d\.?)*)/;
 const CHAIN_REGEX = /^\d+\.(?:\d\.?)*/;
 const CHAIN_DELIMITER = ".";
 
-type Chain = number[];
+export type Chain = number[];
 
 /**
  * Remove any preceding whitespace and comment symbols from the line.
@@ -21,7 +21,7 @@ type Chain = number[];
  * @author Marc de Jong
  * @date 2023-05-23
  */
-function removeCommentSymbolAndWhitespace(line: string): Chain | null {
+export function lineToChain(line: string): Chain | null {
     const lineWithoutWhitespace = line.trimStart();
     const lineWithoutCommentSymbols = (() => {
         for (const regex of START_COMMENT_SYMBOLS_REGEX) {
@@ -47,6 +47,41 @@ function removeCommentSymbolAndWhitespace(line: string): Chain | null {
 
 }
 
+/**
+ * Remove any preceding whitespace and comment symbols from the line.
+ * @author Marc de Jong
+ * @date 2023-05-23
+ */
+export function lineToChainRemainder(line: string): string {
+    const lineWithoutWhitespace = line.trimStart();
+    const lineWithoutCommentSymbols = (() => {
+        for (const regex of START_COMMENT_SYMBOLS_REGEX) {
+            if (regex.test(lineWithoutWhitespace)) {
+                return lineWithoutWhitespace.replace(regex, "");
+            }
+        }
+
+        return lineWithoutWhitespace;
+    })();
+
+    const lineWithoutCommentSymbolsAndWhitespace = lineWithoutCommentSymbols.trimStart();
+
+    const remainder = lineWithoutCommentSymbolsAndWhitespace.replace(CHAIN_REGEX, "");
+
+    return remainder.trim();
+
+}
+
+/**
+ * Compares two arrays for equality by comparing each element.
+ * 
+ * @param a - first array
+ * @param b - second array
+ * @returns true if the arrays are equal, false otherwise
+ * 
+ * @author Marc de Jong
+ * @date 2023-05-24
+ */
 function arraysAreEqual(a: number[], b: number[]) {
     if (a.length !== b.length) {
         return false;
@@ -61,7 +96,16 @@ function arraysAreEqual(a: number[], b: number[]) {
     return true;
 }
 
-function chainToString(chain: Chain) {
+/**
+ * Convert a chain to a string
+ * 
+ * @param chain - The chain to convert
+ * @returns The stringified chain
+ * 
+ * @author Marc de Jong
+ * @date 2023-05-24
+ */
+export function chainToString(chain: Chain) {
     return chain.join(CHAIN_DELIMITER);
 }
 
@@ -78,8 +122,12 @@ function chainToString(chain: Chain) {
  * 
  * @param prev 
  * @param current 
+ * 
+ *
+ * @author Marc de Jong
+ * @date 2023-05-24
  */
-function chainSucceedsOther(prev: Chain, current: Chain){
+export function chainSucceedsOther(prev: Chain, current: Chain){
     // Check the case in which the previous chain is appended by a one
     if (arraysAreEqual(current, [...prev, 1])){
         return true;
@@ -95,20 +143,48 @@ function chainSucceedsOther(prev: Chain, current: Chain){
     return false;
 }
 
+/**
+ * 
+ * @example chainIsChildOfOther([1], [2]) -> false
+ * @example chainIsChildOfOther([1,1], [1,2]) -> false
+ * @example chainIsChildOfOther([1,1,1], [1,2]) -> false
+ * @example chainIsChildOfOther([1], [1,1]) -> true
+ * @example chainIsChildOfOther([1,1], [1,1,1]) -> true
+ * @example chainIsChildOfOther([1,1,1], [1,1,1,1]) -> true
+*/
+export function chainIsChildOfOther(parent: Chain| string, child: Chain) {
+    if (typeof parent === 'string') return true;
+    if (parent.length >= child.length) {
+        return false;
+    }
+
+    for (let i = 0; i < parent.length; ++i) {
+        if (parent[i] !== child[i]) {
+            return false;
+        }
+    }
+
+    return false;
+}
+
 export function refreshDiagnostics(doc: vscode.TextDocument, commentDiagnostics: vscode.DiagnosticCollection): void {
 	const diagnostics: vscode.Diagnostic[] = [];
     let lastChain: Chain | null = null;
 
 	for (let lineIndex = 0; lineIndex < doc.lineCount; lineIndex++) {
 		const line = doc.lineAt(lineIndex);
-        const chain = removeCommentSymbolAndWhitespace(line.text);
+        const chain = lineToChain(line.text);
         
         if (!chain) {
             continue;
         }
 
+        if (lastChain && chain[0] < 2 && chain[0] !== lastChain[0]) {
+            lastChain = chain;
+            continue;
+        }
+
         if (lastChain && !chainSucceedsOther(lastChain, chain)) {
-            console.log(lastChain, chain);
             diagnostics.push(createDiagnostic(doc, line, lineIndex, lastChain));
         }
 
@@ -120,7 +196,6 @@ export function refreshDiagnostics(doc: vscode.TextDocument, commentDiagnostics:
 
 function createDiagnostic(doc: vscode.TextDocument, lineOfText: vscode.TextLine, lineIndex: number, lastChain: Chain): vscode.Diagnostic {
     const match = lineOfText.text.match(NUMBERED_COMMENT_REGEX);
-    console.log(match);
 
     if(!match) {
         throw new Error("No match found");
@@ -137,7 +212,9 @@ function createDiagnostic(doc: vscode.TextDocument, lineOfText: vscode.TextLine,
 
 	const range = new vscode.Range(lineIndex, index, lineIndex, index + captureGroup.length);
 
-	const diagnostic = new vscode.Diagnostic(range, `Comment number (${captureGroup}) does not succeed previous comment number (${chainToString(lastChain)})`,
+    const captureGroupWithoutTrailingDot = captureGroup[captureGroup.length - 1] === "." ? captureGroup.slice(0, -1) : captureGroup;
+
+	const diagnostic = new vscode.Diagnostic(range, `Comment number (${captureGroupWithoutTrailingDot}) does not succeed previous comment number (${chainToString(lastChain)})`,
 		vscode.DiagnosticSeverity.Warning);
 	diagnostic.code = NUMBERED_COMMENTS;
 	return diagnostic;

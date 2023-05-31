@@ -2,11 +2,15 @@
 	"name": "numbered-comments",
 	"private": true,
 	"displayName": "Numbered Comments",
-	"version": "0.0.3",
+	"version": "0.1.0",
 	"publisher": "code-marc",
 	"icon": "assets/favicon.png",
 	"engines": {
 		"vscode": "^1.73.0"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Marcdj-02/numbered-comments.git"
 	},
 	"categories": [
 		"Other"
@@ -18,6 +22,34 @@
 		"onLanguage:javascript"
 	],
 	"main": "./out/extension.js",
+	"contributes": {
+		"commands": [
+            {
+                "command": "extension.highlightLine",
+                "title": "Highlight Line",
+                "category": "TreeView"
+            }
+        ],
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "package-explorer",
+					"title": "Numbered Comments",
+					"icon": "assets/icon.svg"
+				}
+			]
+		},
+		"views": {
+			"package-explorer": [
+				{
+					"id": "comment-tree",
+					"name": "Overview",
+					"icon": "assets/icon.svg",
+					"contextualTitle": "Numbered Comments "
+				}
+			]
+		}
+	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
 		"compile": "tsc -p ./",

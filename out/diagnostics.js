@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.subscribeToDocumentChanges = exports.refreshDiagnostics = exports.NUMBERED_COMMENTS = void 0;
+exports.subscribeToDocumentChanges = exports.refreshDiagnostics = exports.chainIsChildOfOther = exports.chainSucceedsOther = exports.chainToString = exports.lineToChainRemainder = exports.lineToChain = exports.NUMBERED_COMMENTS = void 0;
 const vscode = require("vscode");
 exports.NUMBERED_COMMENTS = 'numbered_comments';
 const START_COMMENT_SYMBOLS_REGEX = [/^\/\//, /^\/\*/];
@@ -19,7 +19,7 @@ const CHAIN_DELIMITER = ".";
  * @author Marc de Jong
  * @date 2023-05-23
  */
-function removeCommentSymbolAndWhitespace(line) {
+function lineToChain(line) {
     const lineWithoutWhitespace = line.trimStart();
     const lineWithoutCommentSymbols = (() => {
         for (const regex of START_COMMENT_SYMBOLS_REGEX) {
@@ -37,6 +37,37 @@ function removeCommentSymbolAndWhitespace(line) {
     const numberChain = chain[0].split(CHAIN_DELIMITER).map((val) => parseInt(val));
     return numberChain.filter((numb) => !isNaN(numb));
 }
+exports.lineToChain = lineToChain;
+/**
+ * Remove any preceding whitespace and comment symbols from the line.
+ * @author Marc de Jong
+ * @date 2023-05-23
+ */
+function lineToChainRemainder(line) {
+    const lineWithoutWhitespace = line.trimStart();
+    const lineWithoutCommentSymbols = (() => {
+        for (const regex of START_COMMENT_SYMBOLS_REGEX) {
+            if (regex.test(lineWithoutWhitespace)) {
+                return lineWithoutWhitespace.replace(regex, "");
+            }
+        }
+        return lineWithoutWhitespace;
+    })();
+    const lineWithoutCommentSymbolsAndWhitespace = lineWithoutCommentSymbols.trimStart();
+    const remainder = lineWithoutCommentSymbolsAndWhitespace.replace(CHAIN_REGEX, "");
+    return remainder.trim();
+}
+exports.lineToChainRemainder = lineToChainRemainder;
+/**
+ * Compares two arrays for equality by comparing each element.
+ *
+ * @param a - first array
+ * @param b - second array
+ * @returns true if the arrays are equal, false otherwise
+ *
+ * @author Marc de Jong
+ * @date 2023-05-24
+ */
 function arraysAreEqual(a, b) {
     if (a.length !== b.length) {
         return false;
@@ -48,9 +79,19 @@ function arraysAreEqual(a, b) {
     }
     return true;
 }
+/**
+ * Convert a chain to a string
+ *
+ * @param chain - The chain to convert
+ * @returns The stringified chain
+ *
+ * @author Marc de Jong
+ * @date 2023-05-24
+ */
 function chainToString(chain) {
     return chain.join(CHAIN_DELIMITER);
 }
+exports.chainToString = chainToString;
 /**
  * Function to determine whether two chains succeed each other.
  *
@@ -64,6 +105,10 @@ function chainToString(chain) {
  *
  * @param prev
  * @param current
+ *
+ *
+ * @author Marc de Jong
+ * @date 2023-05-24
  */
 function chainSucceedsOther(prev, current) {
     // Check the case in which the previous chain is appended by a one
@@ -78,17 +123,44 @@ function chainSucceedsOther(prev, current) {
     }
     return false;
 }
+exports.chainSucceedsOther = chainSucceedsOther;
+/**
+ *
+ * @example chainIsChildOfOther([1], [2]) -> false
+ * @example chainIsChildOfOther([1,1], [1,2]) -> false
+ * @example chainIsChildOfOther([1,1,1], [1,2]) -> false
+ * @example chainIsChildOfOther([1], [1,1]) -> true
+ * @example chainIsChildOfOther([1,1], [1,1,1]) -> true
+ * @example chainIsChildOfOther([1,1,1], [1,1,1,1]) -> true
+*/
+function chainIsChildOfOther(parent, child) {
+    if (typeof parent === 'string')
+        return true;
+    if (parent.length >= child.length) {
+        return false;
+    }
+    for (let i = 0; i < parent.length; ++i) {
+        if (parent[i] !== child[i]) {
+            return false;
+        }
+    }
+    return false;
+}
+exports.chainIsChildOfOther = chainIsChildOfOther;
 function refreshDiagnostics(doc, commentDiagnostics) {
     const diagnostics = [];
     let lastChain = null;
     for (let lineIndex = 0; lineIndex < doc.lineCount; lineIndex++) {
         const line = doc.lineAt(lineIndex);
-        const chain = removeCommentSymbolAndWhitespace(line.text);
+        const chain = lineToChain(line.text);
         if (!chain) {
             continue;
         }
+        if (lastChain && chain[0] < 2 && chain[0] !== lastChain[0]) {
+            lastChain = chain;
+            continue;
+        }
         if (lastChain && !chainSucceedsOther(lastChain, chain)) {
-            console.log(lastChain, chain);
             diagnostics.push(createDiagnostic(doc, line, lineIndex, lastChain));
         }
         lastChain = chain;
@@ -98,7 +170,6 @@ function refreshDiagnostics(doc, commentDiagnostics) {
 exports.refreshDiagnostics = refreshDiagnostics;
 function createDiagnostic(doc, lineOfText, lineIndex, lastChain) {
     const match = lineOfText.text.match(NUMBERED_COMMENT_REGEX);
-    console.log(match);
     if (!match) {
         throw new Error("No match found");
     }
@@ -109,7 +180,8 @@ function createDiagnostic(doc, lineOfText, lineIndex, lastChain) {
     }
     const index = matchedSubString.indexOf(captureGroup);
     const range = new vscode.Range(lineIndex, index, lineIndex, index + captureGroup.length);
-    const diagnostic = new vscode.Diagnostic(range, `Comment number (${captureGroup}) does not succeed previous comment number (${chainToString(lastChain)})`, vscode.DiagnosticSeverity.Warning);
+    const captureGroupWithoutTrailingDot = captureGroup[captureGroup.length - 1] === "." ? captureGroup.slice(0, -1) : captureGroup;
+    const diagnostic = new vscode.Diagnostic(range, `Comment number (${captureGroupWithoutTrailingDot}) does not succeed previous comment number (${chainToString(lastChain)})`, vscode.DiagnosticSeverity.Warning);
     diagnostic.code = exports.NUMBERED_COMMENTS;
     return diagnostic;
 }
