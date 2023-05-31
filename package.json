@@ -2,7 +2,7 @@
 	"name": "numbered-comments",
 	"private": true,
 	"displayName": "Numbered Comments",
-	"version": "0.1.0",
+	"version": "0.1.1", 
 	"publisher": "code-marc",
 	"icon": "assets/favicon.png",
 	"engines": {
