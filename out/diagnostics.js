@@ -4,7 +4,7 @@ exports.subscribeToDocumentChanges = exports.refreshDiagnostics = exports.chainS
 const vscode = require("vscode");
 exports.NUMBERED_COMMENTS = 'numbered_comments';
 // 1. General regex matching rules
-const COMMENT_SYMBOLS_REGEX = [/\/\//, /\/\*/, /#/];
+const COMMENT_SYMBOLS_REGEX = [/\/\//, /\/\*/, /#/, /--/];
 const CHAIN_REGEX = /\d+\.(?:\d\.?)*/;
 const NUMBERED_COMMENT_REGEX = new RegExp(`^ *(?:${COMMENT_SYMBOLS_REGEX.map((e) => e.source).join("|")}) (${CHAIN_REGEX.source})`);
 const CHAIN_DELIMITER = ".";

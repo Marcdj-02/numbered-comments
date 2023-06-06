@@ -6,7 +6,7 @@ import * as vscode from 'vscode';
 import { subscribeToDocumentChanges } from './diagnostics';
 import { CommentTreeProvider } from './commentTreeProvider';
 
-const TARGET_LANGUAGES = ['typescript', 'typescriptreact', 'javascript', 'javascriptreact', 'python', 'csharp', 'java'];
+const TARGET_LANGUAGES = ['typescript', 'typescriptreact', 'javascript', 'javascriptreact', 'python', 'csharp', 'java', 'sql'];
 const COMMAND_COMPLETIONS = [["// @", "@", "nc-ignore"], ["// @", "@", "nc-reset"]]
 
 export function activate(context: vscode.ExtensionContext) {

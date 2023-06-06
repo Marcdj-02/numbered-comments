@@ -7,7 +7,7 @@ exports.activate = void 0;
 const vscode = require("vscode");
 const diagnostics_1 = require("./diagnostics");
 const commentTreeProvider_1 = require("./commentTreeProvider");
-const TARGET_LANGUAGES = ['typescript', 'typescriptreact', 'javascript', 'javascriptreact', 'python', 'csharp', 'java'];
+const TARGET_LANGUAGES = ['typescript', 'typescriptreact', 'javascript', 'javascriptreact', 'python', 'csharp', 'java', 'sql'];
 const COMMAND_COMPLETIONS = [["// @", "@", "nc-ignore"], ["// @", "@", "nc-reset"]];
 function activate(context) {
     for (const language of TARGET_LANGUAGES) {

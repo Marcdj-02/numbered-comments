@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 export const NUMBERED_COMMENTS = 'numbered_comments';
 
 // 1. General regex matching rules
-const COMMENT_SYMBOLS_REGEX = [/\/\//, /\/\*/, /#/];
+const COMMENT_SYMBOLS_REGEX = [/\/\//, /\/\*/, /#/, /--/];
 const CHAIN_REGEX = /\d+\.(?:\d\.?)*/;
 const NUMBERED_COMMENT_REGEX = new RegExp(`^ *(?:${COMMENT_SYMBOLS_REGEX.map((e) => e.source).join("|")}) (${CHAIN_REGEX.source})`)
 const CHAIN_DELIMITER = ".";
@@ -205,7 +205,6 @@ export function refreshDiagnostics(doc: vscode.TextDocument, commentDiagnostics:
         // 1.7 Set the last chain to the current chain
         lastChain = chain;
 	}
-
 
     // 2. Set the diagnostics to expose the errors
 	commentDiagnostics.set(doc.uri, diagnostics);

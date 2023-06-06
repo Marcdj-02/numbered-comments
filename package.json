@@ -2,7 +2,7 @@
 	"name": "numbered-comments",
 	"private": true,
 	"displayName": "Numbered Comments",
-	"version": "0.2.1", 
+	"version": "0.2.2", 
 	"publisher": "code-marc",
 	"icon": "assets/favicon.png",
 	"engines": {
@@ -22,7 +22,8 @@
 		"onLanguage:javascript",
 		"onLanguage:python",
 		"onLanguage:java",
-		"onLanguage:csharp"
+		"onLanguage:csharp",
+		"onLanguage:sql"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
