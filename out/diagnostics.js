@@ -134,8 +134,13 @@ function chainSucceedsOther(prev, current) {
     }
     // 2. Check the case in which the previous chain is increased by one and cut off
     for (let i = 0; i < prev.length; ++i) {
+        // 2.1 Check if the current position is the same as the previous position + 1, and is the last of the chain
         if (prev[i] + 1 === current[i] && i === current.length - 1) {
             return true;
+        }
+        // 2.2 If previous condition was not met, check if the positions are the same, otherwise the chain does not succeed
+        if (prev[i] !== current[i]) {
+            return false;
         }
     }
     // 3. If neither case is true, the current chain does not succeed the previous chain

@@ -2,7 +2,7 @@
 	"name": "numbered-comments",
 	"private": true,
 	"displayName": "Numbered Comments",
-	"version": "0.2.2", 
+	"version": "0.2.3", 
 	"publisher": "code-marc",
 	"icon": "assets/favicon.png",
 	"engines": {
@@ -58,7 +58,8 @@
 		"vscode:prepublish": "npm run compile",
 		"compile": "tsc -p ./",
 		"lint": "eslint \"src/**/*.ts\"",
-		"watch": "tsc -watch -p ./"
+		"watch": "tsc -watch -p ./",
+		"release": "vsce package && vsce publish"
 	},
 	"devDependencies": {
 		"@types/node": "^16.11.7",
